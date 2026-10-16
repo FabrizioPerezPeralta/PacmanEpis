@@ -189,10 +189,13 @@ class ArcadeView:
                 </div>
 
                 <div style="width: 100%; max-width: 320px; background: rgba(8, 12, 26, 0.9); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 6px; padding: 8px 12px; text-align: left;">
-                  <div style="font-size: 7px; color: #ffe600; text-transform: uppercase; margin-bottom: 4px; font-weight: bold;">
-                    🏆 TOP 5 DE USUARIOS DESTACADOS:
+                  <div style="font-size: 7px; color: #ffe600; text-transform: uppercase; margin-bottom: 4px; font-weight: bold; display: flex; justify-content: space-between;">
+                    <span>🏆 TOP 5 EN VIVO:</span>
+                    <span style="color: #00ff88;">TIEMPO REAL</span>
                   </div>
-                  {top_5_html}
+                  <div id="miniTop5Container">
+                    {top_5_html}
+                  </div>
                 </div>
               </div>
 
@@ -200,6 +203,14 @@ class ArcadeView:
               <div class="canvas-overlay" id="screenOverlay">
                 <h2 class="overlay-title" id="overlayTitle">GAME OVER</h2>
                 <p class="overlay-msg" id="overlayMsg">El virus secuestró tu paquete TCP/IP.</p>
+                <div id="gameOverTop5Container" style="width: 100%; max-width: 320px; background: rgba(8, 12, 26, 0.95); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; text-align: left;">
+                  <div style="font-size: 7px; color: #ffe600; text-transform: uppercase; margin-bottom: 4px; font-weight: bold;">
+                    🏆 TABLA ACTUALIZADA TOP 5:
+                  </div>
+                  <div id="gameOverTop5List">
+                    {top_5_html}
+                  </div>
+                </div>
                 <div class="overlay-buttons">
                   <button class="retro-btn" id="btnOverlayAction">REINTENTAR [R]</button>
                   <button class="retro-btn" id="btnChangeUser" style="border-color: #ffe600; color: #ffe600;">CAMBIAR NOMBRE</button>
@@ -336,13 +347,84 @@ class ArcadeView:
         }}
       }}
 
+      function renderTop5List(top5Data) {{
+        if (!top5Data || !top5Data.length) return;
+        const badges = ["🥇", "🥈", "🥉", "🎖️", "🎖️"];
+        const rows = top5Data.slice(0, 5).map((item, idx) => {{
+          const b = badges[idx] || `#${{idx+1}}`;
+          const name = item.player || 'ANON';
+          const score = (item.score || 0).toLocaleString();
+          const lvl = item.level || `Nivel ${{8-idx}}`;
+          return `
+            <div style="display: flex; justify-content: space-between; font-size: 8px; margin-bottom: 3px; color: #a5b4fc;">
+              <span>${{b}} ${{name}} (${{lvl}})</span>
+              <span style="color: #00f0ff; font-weight: bold;">${{score}} B</span>
+            </div>
+          `;
+        }}).join('');
+
+        const miniEl = document.getElementById('miniTop5Container');
+        if (miniEl) miniEl.innerHTML = rows;
+
+        const overEl = document.getElementById('gameOverTop5List');
+        if (overEl) overEl.innerHTML = rows;
+      }}
+
+      function syncScoreToServer(finalScore, levelNum) {{
+        const payload = {{
+          player: activeOperatorName,
+          score: finalScore,
+          level: `Nivel ${{levelNum || 1}}`
+        }};
+
+        const host = window.location.hostname || 'localhost';
+        const apiUrl = `http://${{host}}:8502/api/score`;
+
+        fetch(apiUrl, {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify(payload)
+        }})
+        .then(res => res.json())
+        .then(data => {{
+          if (data.top_5) {{
+            renderTop5List(data.top_5);
+          }}
+        }})
+        .catch(() => {{}});
+      }}
+
+      function fetchTop5FromServer() {{
+        const host = window.location.hostname || 'localhost';
+        const apiUrl = `http://${{host}}:8502/api/top5`;
+        fetch(apiUrl)
+        .then(res => res.json())
+        .then(data => {{
+          if (data.top_5) {{
+            renderTop5List(data.top_5);
+            if (data.high_score && data.high_score > highestScore) {{
+              highestScore = data.high_score;
+              hudHighScore.innerText = String(highestScore).padStart(5, '0');
+            }}
+          }}
+        }})
+        .catch(() => {{}});
+      }}
+
+      // Polling cada 3 segundos para actualización en tiempo real
+      setInterval(fetchTop5FromServer, 3000);
+
       function showGameOver(finalScore) {{
         overlayTitle.innerText = "SISTEMA COMPROMETIDO";
         overlayTitle.style.color = "#ff0055";
-        overlayMsg.innerHTML = `Operador: <strong>${{activeOperatorName}}</strong><br>Puntaje Final: <strong>${{finalScore.toLocaleString()}} Bytes</strong>.<br>Las ciberamenazas interceptaron tus paquetes. ¡Refuerza el cortafuegos e inténtalo de nuevo!`;
+        const lvl = currentGame ? currentGame.level : 1;
+        overlayMsg.innerHTML = `Operador: <strong>${{activeOperatorName}}</strong><br>Puntaje Final: <strong>${{finalScore.toLocaleString()}} Bytes</strong> (Nivel ${{lvl}}).<br>¡Récord sincronizado en tiempo real con el Top 5!`;
         btnOverlayAction.innerText = "REINTENTAR [R]";
         overlay.classList.add('active');
         audioService.play('death');
+
+        // Sincronizar puntaje con el servidor multijugador
+        syncScoreToServer(finalScore, lvl);
       }}
 
       function initNewGame() {{

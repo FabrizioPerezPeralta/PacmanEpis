@@ -5,7 +5,11 @@ Misión Ciberseguridad & Redes TCP/IP.
 """
 
 import streamlit as st
+from models.api_server import start_background_api
 from controllers.game_controller import GameController
+
+# Iniciar servidor API ligero para sincronización multijugador en tiempo real
+start_background_api(port=8502)
 
 # 1. Configuración de la Página
 st.set_page_config(

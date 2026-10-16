@@ -102,9 +102,20 @@ def start_background_api(port: int = 8502):
         _api_server_instance = server
         _api_thread = threading.Thread(target=server.serve_forever, daemon=True)
         _api_thread.start()
-        print(f"📡 Multi-Player Leaderboard API escuchando en http://0.0.0.0:{port}")
+        print(f"[API] Multi-Player Leaderboard API escuchando en http://0.0.0.0:{port}")
     except OSError:
         # El puerto ya puede estar en uso por una recarga previa
         pass
 
     return _api_server_instance
+
+
+if __name__ == "__main__":
+    import time
+    server = start_background_api(port=8502)
+    print("API Server running on port 8502...")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass

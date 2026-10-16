@@ -7,6 +7,7 @@ Controlador central que orquesta el Modelo (GameModel, ThreatModel) y las Vistas
 import streamlit as st
 from models.game_model import GameModel
 from models.threat_model import ThreatModel
+from models.api_server import start_background_api
 from views.arcade_view import ArcadeView
 from views.dashboard_view import DashboardView
 
@@ -15,6 +16,9 @@ class GameController:
     """Controlador que gestiona la lógica de aplicación, estado de sesión y sincronización MVC."""
 
     def __init__(self):
+        # Iniciar servidor API ligero en segundo plano para sincronización multijugador
+        start_background_api(port=8502)
+
         self.game_model = GameModel()
         self.threat_model = ThreatModel()
         self.arcade_view = ArcadeView()
@@ -134,8 +138,31 @@ class GameController:
                 unsafe_allow_html=True
             )
 
+    @st.fragment(run_every="2s")
+    def render_live_top_5_fragment(self, active_preset_name: str):
+        """Renderiza la tarjeta del Top 5 con auto-actualización reactiva en tiempo real cada 2 segundos."""
+        top_5 = self.game_model.get_top_5()
+        self.dashboard_view.render_top_5_side_card(
+            top_5=top_5,
+            current_player=st.session_state["player_name"],
+            current_diff=active_preset_name
+        )
+
     def run(self):
         """Punto de ejecución principal que coordina vistas y modelos."""
+        # Verificar si hay puntajes entrantes por parámetros de URL
+        if "s" in st.query_params and "p" in st.query_params:
+            try:
+                p = st.query_params["p"]
+                s = int(st.query_params["s"])
+                l = st.query_params.get("l", "Nivel 1")
+                self.submit_score(s, p, l)
+                del st.query_params["s"]
+                if "p" in st.query_params: del st.query_params["p"]
+                if "l" in st.query_params: del st.query_params["l"]
+            except Exception:
+                pass
+
         # 1. Barra lateral de control
         self.render_sidebar()
 
@@ -169,12 +196,8 @@ class GameController:
             col_top5, col_arcade = st.columns([1.1, 2.3], gap="medium")
 
             with col_top5:
-                top_5 = self.game_model.get_top_5()
-                self.dashboard_view.render_top_5_side_card(
-                    top_5=top_5,
-                    current_player=st.session_state["player_name"],
-                    current_diff=active_preset["name"]
-                )
+                # Actualización reactiva cada 2 segundos sin recargar el juego
+                self.render_live_top_5_fragment(active_preset["name"])
 
             with col_arcade:
                 # Renderizar Gabinete Arcade interactivo con autenticación previa
