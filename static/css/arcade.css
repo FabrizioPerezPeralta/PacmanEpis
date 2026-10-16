@@ -1,0 +1,341 @@
+/* ==========================================================================
+   SYS-ENGINEER ARCADE 198X - CYBER PACKET (PAC-MAN) CRT STYLING
+   ========================================================================== */
+
+:root {
+  --arcade-bg: #070912;
+  --cabinet-outer: #0d111e;
+  --cabinet-rim: #1b2238;
+  --neon-cyan: #00f0ff;
+  --neon-magenta: #ff0077;
+  --neon-yellow: #ffe600;
+  --neon-green: #00ff88;
+  --neon-purple: #a855f7;
+
+  --font-retro: 'Press Start 2P', monospace, cursive;
+  --font-pixel: 'VT323', monospace;
+  --font-tech: 'Orbitron', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.arcade-container-body {
+  background-color: var(--arcade-bg);
+  background-image: 
+    radial-gradient(circle at 50% 15%, rgba(0, 240, 255, 0.12), transparent 60%),
+    linear-gradient(180deg, #060810 0%, #0d1020 50%, #05060d 100%);
+  color: #fff;
+  font-family: var(--font-retro);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  overflow: hidden;
+  min-height: 100vh;
+}
+
+/* Arcade Cabinet Shell */
+.arcade-cabinet {
+  width: 100%;
+  max-width: 660px;
+  background: linear-gradient(180deg, #141829 0%, #0e1222 60%, #080a14 100%);
+  border: 3px solid #232b47;
+  border-radius: 16px;
+  box-shadow: 
+    0 0 0 2px #04050a,
+    0 0 30px rgba(0, 240, 255, 0.25),
+    0 20px 50px rgba(0, 0, 0, 0.9);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Glowing Marquee Header */
+.marquee-bar {
+  background: linear-gradient(90deg, #ff0077 0%, #7928ca 50%, #00f0ff 100%);
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #000;
+  box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.marquee-title {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.marquee-badge {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 8px;
+  color: var(--neon-yellow);
+}
+
+/* CRT Screen Frame */
+.crt-monitor-frame {
+  padding: 10px;
+  background: #090b14;
+}
+
+.bezel-inner {
+  background: #000;
+  border-radius: 10px;
+  border: 2px solid #1c2236;
+  position: relative;
+  overflow: hidden;
+}
+
+.crt-screen {
+  position: relative;
+  width: 100%;
+  background: #030408;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* CRT Scanlines Overlay */
+.crt-scanlines {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 50%);
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.crt-vignette {
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 45px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  z-index: 21;
+}
+
+/* HUD Header */
+.hud-bar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(8, 11, 20, 0.9);
+  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+  z-index: 25;
+}
+
+.hud-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hud-label {
+  font-size: 7px;
+  color: #8c9ac2;
+  letter-spacing: 1px;
+}
+
+.hud-value {
+  font-size: 11px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 6px rgba(0, 240, 255, 0.6);
+}
+
+.hud-value.gold {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 6px rgba(255, 230, 0, 0.6);
+}
+
+/* Canvas Container */
+.canvas-wrap {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #000;
+  padding: 4px 0;
+}
+
+#gameCanvas {
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  aspect-ratio: 28 / 31;
+  background: #000;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+}
+
+/* Sub-HUD Status (Active Firewall Token & Threat Level) */
+.sub-hud-bar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: rgba(8, 11, 20, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 8px;
+  z-index: 25;
+}
+
+.sub-hud-val {
+  color: var(--neon-green);
+  margin-left: 6px;
+}
+
+/* Canvas Overlay (Pause & GameOver) */
+.canvas-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 7, 14, 0.88);
+  backdrop-filter: blur(4px);
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 24px;
+  z-index: 30;
+}
+
+.canvas-overlay.active {
+  display: flex;
+}
+
+.overlay-title {
+  font-size: 16px;
+  color: var(--neon-yellow);
+  margin-bottom: 12px;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px rgba(255, 230, 0, 0.6);
+}
+
+.overlay-msg {
+  font-family: var(--font-pixel);
+  font-size: 19px;
+  color: #cbd5ef;
+  line-height: 1.4;
+  margin-bottom: 22px;
+  max-width: 380px;
+}
+
+.overlay-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.retro-btn {
+  background: rgba(0, 240, 255, 0.15);
+  border: 2px solid var(--neon-cyan);
+  color: #fff;
+  font-family: var(--font-retro);
+  font-size: 9px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retro-btn:hover {
+  background: var(--neon-cyan);
+  color: #070912;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+}
+
+/* Control Deck (Virtual D-Pad & Actions) */
+.arcade-control-deck {
+  padding: 12px 16px;
+  background: linear-gradient(180deg, #171c2e 0%, #101322 100%);
+  border-top: 2px solid #283252;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dpad-container {
+  display: grid;
+  grid-template-columns: repeat(3, 40px);
+  grid-template-rows: repeat(3, 40px);
+  gap: 3px;
+}
+
+.dpad-btn {
+  background: #252d47;
+  border: 1px solid #3c4870;
+  border-radius: 6px;
+  color: #a4b4dd;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #121624;
+}
+
+.dpad-btn:active, .dpad-btn.pressed {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #121624;
+  background: var(--neon-cyan);
+  color: #070912;
+}
+
+.dpad-up { grid-column: 2; grid-row: 1; }
+.dpad-left { grid-column: 1; grid-row: 2; }
+.dpad-center { grid-column: 2; grid-row: 2; background: #191f33; border-color: #191f33; }
+.dpad-right { grid-column: 3; grid-row: 2; }
+.dpad-down { grid-column: 2; grid-row: 3; }
+
+.action-buttons-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.action-circle-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 3px solid #ff0055;
+  background: radial-gradient(circle at 35% 35%, #ff0055, #aa0033);
+  color: #fff;
+  font-family: var(--font-retro);
+  font-size: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 5px 0 #55001a, 0 0 12px rgba(255, 0, 85, 0.4);
+}
+
+.action-circle-btn:active, .action-circle-btn.pressed {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 #55001a;
+}
+
+.btn-pause-action {
+  border-color: var(--neon-yellow);
+  background: radial-gradient(circle at 35% 35%, #e6be00, #997700);
+  box-shadow: 0 5px 0 #4d3c00;
+}
