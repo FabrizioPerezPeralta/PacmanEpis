@@ -35,6 +35,17 @@ st.markdown(
             font-family: 'Share Tech Mono', monospace;
         }
 
+        .block-container {
+            padding-top: 0.3rem !important;
+            padding-bottom: 0.2rem !important;
+            max-width: 1400px;
+        }
+
+        header[data-testid="stHeader"] {
+            height: 1.5rem !important;
+            background: transparent !important;
+        }
+
         /* Títulos y Headers */
         h1, h2, h3, h4, h5, h6 {
             font-family: 'Orbitron', sans-serif !important;

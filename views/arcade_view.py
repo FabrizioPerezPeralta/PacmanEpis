@@ -8,6 +8,7 @@ import os
 from typing import List, Dict, Any
 import streamlit as st
 import streamlit.components.v1 as components
+from models.supabase_client import get_supabase_credentials
 
 
 class ArcadeView:
@@ -31,8 +32,8 @@ class ArcadeView:
 
     def generate_html(
         self,
-        initial_high_score: int = 14800,
-        top_player: str = "KEVIN_M",
+        initial_high_score: int = 0,
+        top_player: str = "DEV_SECOPS",
         player_name: str = "DEV_SECOPS",
         difficulty_speed: float = 1.0,
         top_5: List[Dict[str, Any]] = None
@@ -42,6 +43,9 @@ class ArcadeView:
         base_game_js = self._read_file(self.js_base_path)
         audio_service_js = self._read_file(self.js_audio_path)
         game_js = self._read_file(self.js_game_path)
+        sb_url, sb_key = get_supabase_credentials()
+        sb_url_str = sb_url or ""
+        sb_key_str = sb_key or ""
 
         # Generar markup para mini-top5 dentro del modal
         top_5_html = ""
@@ -89,8 +93,8 @@ class ArcadeView:
 
     .arcade-wrapper {{
       width: 100%;
-      max-width: 600px;
-      margin: 6px auto;
+      max-width: 470px;
+      margin: 0 auto;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -98,24 +102,48 @@ class ArcadeView:
 
     .auth-box-input {{
       width: 100%;
-      max-width: 300px;
-      padding: 10px 14px;
-      background: #070c1e;
+      max-width: 280px;
+      padding: 8px 12px;
+      background: #080d22;
       border: 2px solid var(--neon-cyan);
-      border-radius: 8px;
+      border-radius: 6px;
       color: var(--neon-yellow);
       font-family: var(--font-retro);
       font-size: 11px;
       text-align: center;
       text-transform: uppercase;
       outline: none;
-      box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
-      margin-bottom: 14px;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.35);
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+      transition: all 0.25s ease;
     }}
 
     .auth-box-input:focus {{
       border-color: #ffe600;
-      box-shadow: 0 0 20px rgba(255, 230, 0, 0.6);
+      box-shadow: 0 0 25px rgba(255, 230, 0, 0.7);
+      background: #0c1433;
+    }}
+
+    .auth-box-input::placeholder {{
+      color: #64748b;
+      font-size: 9px;
+      letter-spacing: 0.5px;
+    }}
+
+    @keyframes pulseNotice {{
+      0%, 100% {{ transform: scale(1); opacity: 1; }}
+      50% {{ transform: scale(1.03); opacity: 0.9; }}
+    }}
+
+    @keyframes shake {{
+      0%, 100% {{ transform: translateX(0); }}
+      20%, 60% {{ transform: translateX(-6px); }}
+      40%, 80% {{ transform: translateX(6px); }}
+    }}
+
+    .shake {{
+      animation: shake 0.4s ease;
     }}
   </style>
 </head>
@@ -170,32 +198,36 @@ class ArcadeView:
             <div class="canvas-wrap">
               <canvas id="gameCanvas" width="560" height="620"></canvas>
 
-              <!-- OVERLAY DE INICIO: PEDIR NOMBRE DE USUARIO PRIMERO -->
-              <div class="canvas-overlay active" id="authOverlay">
-                <div style="font-size: 28px; margin-bottom: 6px;">🚨</div>
-                <h2 class="overlay-title" style="color: #00f0ff; font-size: 13px; letter-spacing: 1.5px; margin-bottom: 8px;">
-                  ACCESO A LA SUBRED TCP/IP
-                </h2>
-                <p class="overlay-msg" style="font-size: 15px; margin-bottom: 12px; color: #cbd5e1;">
-                  Identifícate con tu nombre de usuario para autorizar el enrutamiento:
+              <!-- OVERLAY DE INICIO: PEDIR NOMBRE DE USUARIO OBLIGATORIO -->
+              <div class="canvas-overlay active" id="authOverlay" style="padding: 14px 18px;">
+                <div style="font-size: 26px; margin-bottom: 4px; filter: drop-shadow(0 0 10px #00f0ff);">🎮</div>
+                
+                <div style="display: inline-block; background: rgba(0, 240, 255, 0.15); border: 1px solid #00f0ff; border-radius: 16px; padding: 2px 10px; font-size: 8px; font-weight: bold; letter-spacing: 1.5px; color: #00f0ff; margin-bottom: 6px; text-transform: uppercase;">
+                  PASO 1 // REGISTRO DE OPERADOR
+                </div>
+
+                <h1 style="color: #ffe600; font-size: 13px; font-weight: 900; letter-spacing: 1px; text-shadow: 0 0 10px rgba(255, 230, 0, 0.7); margin: 0 0 6px 0; line-height: 1.3;">
+                  ¡INGRESA TU NOMBRE DE USUARIO!
+                </h1>
+
+                <p style="font-size: 11px; margin-bottom: 8px; color: #cbd5e1; font-family: var(--font-pixel); line-height: 1.3; max-width: 290px;">
+                  Tu puntaje se guardará automáticamente en <strong style="color: #00ff88;">Supabase</strong> con este nombre:
                 </p>
                 
-                <input type="text" id="inputPlayerName" class="auth-box-input" maxlength="12" value="{player_name}" placeholder="TU NOMBRE..." autofocus />
+                <input type="text" id="inputPlayerName" class="auth-box-input" maxlength="12" value="" placeholder="ESCRIBE TU NOMBRE AQUÍ..." autofocus autocomplete="off" />
                 
-                <div class="overlay-buttons" style="margin-bottom: 16px;">
-                  <button class="retro-btn" id="btnStartWithUser" style="background: var(--neon-cyan); color: #05070f; font-weight: bold; font-size: 10px; padding: 12px 20px; box-shadow: 0 0 15px rgba(0,240,255,0.6);">
-                    ▶ INICIAR JUEGO [ENTER]
+                <div id="authWarning" style="display: none; color: #ff0055; font-size: 8px; font-weight: bold; margin-top: -4px; margin-bottom: 8px; text-shadow: 0 0 8px rgba(255, 0, 85, 0.8);">
+                  ⚠️ ¡DEBES ESCRIBIR TU NOMBRE PARA COMENZAR!
+                </div>
+
+                <div class="overlay-buttons" style="margin-bottom: 4px;">
+                  <button class="retro-btn" id="btnStartWithUser" style="background: linear-gradient(90deg, #00f0ff, #00d2ff); color: #05070f; font-weight: 900; font-size: 9px; padding: 8px 20px; box-shadow: 0 0 15px rgba(0,240,255,0.7); border: 2px solid #fff; letter-spacing: 1px;">
+                    ▶ CONFIRMAR Y JUGAR [ENTER]
                   </button>
                 </div>
 
-                <div style="width: 100%; max-width: 320px; background: rgba(8, 12, 26, 0.9); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 6px; padding: 8px 12px; text-align: left;">
-                  <div style="font-size: 7px; color: #ffe600; text-transform: uppercase; margin-bottom: 4px; font-weight: bold; display: flex; justify-content: space-between;">
-                    <span>🏆 TOP 5 EN VIVO:</span>
-                    <span style="color: #00ff88;">TIEMPO REAL</span>
-                  </div>
-                  <div id="miniTop5Container">
-                    {top_5_html}
-                  </div>
+                <div style="font-size: 7px; color: #64748b; margin-top: 4px; letter-spacing: 0.5px;">
+                  🎯 Máximo 12 caracteres (Letras, números o guiones)
                 </div>
               </div>
 
@@ -307,6 +339,8 @@ class ArcadeView:
       let highestScore = {initial_high_score};
       const speedMultiplier = {difficulty_speed};
       let activeOperatorName = "{player_name}";
+      const SUPABASE_REST_URL = "{sb_url_str}";
+      const SUPABASE_ANON_KEY = "{sb_key_str}";
 
       function updateHUD(data) {{
         if (data.score !== undefined) {{
@@ -377,6 +411,30 @@ class ArcadeView:
           level: `Nivel ${{levelNum || 1}}`
         }};
 
+        // 1. Sincronización directa a Supabase Cloud vía PostgREST RPC si está disponible
+        if (SUPABASE_REST_URL && SUPABASE_ANON_KEY) {{
+          fetch(`${{SUPABASE_REST_URL}}/rest/v1/rpc/submit_score`, {{
+            method: 'POST',
+            headers: {{
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${{SUPABASE_ANON_KEY}}`
+            }},
+            body: JSON.stringify({{
+              p_player_tag: activeOperatorName,
+              p_score: finalScore,
+              p_level: `Nivel ${{levelNum || 1}}`,
+              p_difficulty: 'normal'
+            }})
+          }})
+          .then(res => res.json())
+          .then(() => {{
+            fetchTop5FromServer();
+          }})
+          .catch(() => {{}});
+        }}
+
+        // 2. Sincronización a API local en puerto 8502 (Fallback)
         const host = window.location.hostname || 'localhost';
         const apiUrl = `http://${{host}}:8502/api/score`;
 
@@ -395,6 +453,33 @@ class ArcadeView:
       }}
 
       function fetchTop5FromServer() {{
+        // Consultar Supabase si está activo
+        if (SUPABASE_REST_URL && SUPABASE_ANON_KEY) {{
+          fetch(`${{SUPABASE_REST_URL}}/rest/v1/scores?select=player_tag,score,level&order=score.desc,created_at.asc&limit=5`, {{
+            headers: {{
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${{SUPABASE_ANON_KEY}}`
+            }}
+          }})
+          .then(res => res.json())
+          .then(data => {{
+            if (Array.isArray(data) && data.length > 0) {{
+              const mapped = data.map(item => ({{
+                player: item.player_tag,
+                score: item.score,
+                level: item.level
+              }}));
+              renderTop5List(mapped);
+              if (mapped[0] && mapped[0].score > highestScore) {{
+                highestScore = mapped[0].score;
+                hudHighScore.innerText = String(highestScore).padStart(5, '0');
+              }}
+            }}
+          }})
+          .catch(() => {{}});
+        }}
+
+        // También consultar API local
         const host = window.location.hostname || 'localhost';
         const apiUrl = `http://${{host}}:8502/api/top5`;
         fetch(apiUrl)
@@ -456,11 +541,32 @@ class ArcadeView:
 
       function authenticateAndStart() {{
         const raw = inputPlayerName.value.trim().toUpperCase();
-        activeOperatorName = raw.slice(0, 12) || "DEV_SECOPS";
+        if (!raw) {{
+          const authWarning = document.getElementById('authWarning');
+          if (authWarning) {{
+            authWarning.style.display = 'block';
+            authWarning.classList.add('shake');
+            setTimeout(() => authWarning.classList.remove('shake'), 400);
+          }}
+          inputPlayerName.style.borderColor = '#ff0055';
+          inputPlayerName.style.boxShadow = '0 0 25px rgba(255, 0, 85, 0.8)';
+          inputPlayerName.focus();
+          return;
+        }}
+        activeOperatorName = raw.slice(0, 12);
         hudPlayer.innerText = activeOperatorName;
         audioService.init();
         initNewGame();
       }}
+
+      inputPlayerName.addEventListener('input', () => {{
+        const authWarning = document.getElementById('authWarning');
+        if (authWarning && inputPlayerName.value.trim()) {{
+          authWarning.style.display = 'none';
+        }}
+        inputPlayerName.style.borderColor = 'var(--neon-cyan)';
+        inputPlayerName.style.boxShadow = '0 0 20px rgba(0, 240, 255, 0.4)';
+      }});
 
       btnStartWithUser.addEventListener('click', authenticateAndStart);
 
@@ -608,12 +714,12 @@ class ArcadeView:
 
     def render(
         self,
-        initial_high_score: int = 14800,
-        top_player: str = "KEVIN_M",
+        initial_high_score: int = 0,
+        top_player: str = "DEV_SECOPS",
         player_name: str = "DEV_SECOPS",
         difficulty_speed: float = 1.0,
         top_5: List[Dict[str, Any]] = None,
-        height: int = 860
+        height: int = 575
     ):
         """Emite el componente Web dentro del árbol de renderizado de Streamlit."""
         html_code = self.generate_html(

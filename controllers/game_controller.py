@@ -12,6 +12,9 @@ from views.arcade_view import ArcadeView
 from views.dashboard_view import DashboardView
 
 
+from models.supabase_client import get_supabase_status
+
+
 class GameController:
     """Controlador que gestiona la lógica de aplicación, estado de sesión y sincronización MVC."""
 
@@ -48,7 +51,8 @@ class GameController:
     def submit_score(self, score: int, player_name: str, level: str = "Nivel 1"):
         """Registra un nuevo puntaje en el modelo persistente."""
         if score > 0:
-            is_record = self.game_model.save_score(score, player_name, level)
+            diff = st.session_state.get("difficulty", "normal")
+            is_record = self.game_model.save_score(score, player_name, level, difficulty=diff)
             if is_record:
                 st.balloons()
                 st.success(f"🎉 ¡NUEVO RÉCORD DE RED! {player_name} alcanzó {score:,} Bytes ({level}).")
@@ -67,6 +71,27 @@ class GameController:
                 """,
                 unsafe_allow_html=True
             )
+
+            # Estado de Persistencia de Base de Datos
+            sb_status = get_supabase_status()
+            if sb_status["connected"]:
+                st.markdown(
+                    """
+                    <div style="margin-top: 8px; font-size: 10px; color: #00ff88; text-align: center; background: rgba(0, 255, 136, 0.08); border: 1px solid rgba(0, 255, 136, 0.3); border-radius: 4px; padding: 4px 6px;">
+                        ⚡ PERSISTENCIA: <strong>SUPABASE CLOUD 🟢</strong>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    """
+                    <div style="margin-top: 8px; font-size: 10px; color: #fde047; text-align: center; background: rgba(253, 224, 71, 0.08); border: 1px solid rgba(253, 224, 71, 0.3); border-radius: 4px; padding: 4px 6px;">
+                        💾 PERSISTENCIA: <strong>MODO LOCAL (JSON) 🟡</strong>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
             st.write("")
             # Identificador del Operador (Puesto arriba de todo)
@@ -166,79 +191,29 @@ class GameController:
         # 1. Barra lateral de control
         self.render_sidebar()
 
-        # 2. Encabezado principal
+        # 2. Encabezado principal limpio
         self.dashboard_view.render_header()
 
-        # 3. Métricas clave superiores
+        # 3. Parámetros de juego
         presets = self.game_model.get_difficulty_presets()
         active_preset = presets.get(st.session_state["difficulty"], presets["normal"])
         high_score = self.game_model.get_high_score()
         top_player = self.game_model.get_top_player()
 
-        self.dashboard_view.render_metrics(
-            high_score=high_score,
-            top_player=top_player,
-            difficulty_name=active_preset["name"],
-            credits=st.session_state["credits"]
-        )
+        # 4. Vista Unificada: Top de Usuarios a la izquierda y Gabinete Arcade a la derecha
+        col_top5, col_arcade = st.columns([1, 1.9], gap="medium")
 
-        st.write("")
+        with col_top5:
+            # Actualización reactiva cada 2 segundos sin recargar el juego
+            self.render_live_top_5_fragment(active_preset["name"])
 
-        # 4. Organización por Pestañas Profesionales
-        tab_arcade, tab_intel, tab_leaderboard = st.tabs([
-            "🕹️ PANTALLA ARCADE (CYBER PACKET)",
-            "🛡️ MATRIZ DE CIBERDEFENSA",
-            "🏆 SALÓN DE LA FAMA & VOCACIÓN"
-        ])
-
-        with tab_arcade:
-            # Layout con TOP 5 a la izquierda y Gabinete Arcade a la derecha
-            col_top5, col_arcade = st.columns([1.1, 2.3], gap="medium")
-
-            with col_top5:
-                # Actualización reactiva cada 2 segundos sin recargar el juego
-                self.render_live_top_5_fragment(active_preset["name"])
-
-            with col_arcade:
-                # Renderizar Gabinete Arcade interactivo con autenticación previa
-                self.arcade_view.render(
-                    initial_high_score=high_score,
-                    top_player=top_player,
-                    player_name=st.session_state["player_name"],
-                    difficulty_speed=active_preset["speed_mult"],
-                    top_5=self.game_model.get_top_5(),
-                    height=860
-                )
-
-        with tab_intel:
-            # Matriz de Ciberamenazas y Arsenal de Tokens
-            threats = self.threat_model.get_all_threats()
-            self.dashboard_view.render_threat_matrix(threats)
-
-            st.write("")
-            tokens = self.threat_model.get_firewall_tokens()
-            self.dashboard_view.render_defense_tokens(tokens)
-
-        with tab_leaderboard:
-            # Leaderboard y Píldora vocacional
-            col_lead, col_info = st.columns([3, 2])
-            with col_lead:
-                leaderboard = self.game_model.get_leaderboard()
-                self.dashboard_view.render_leaderboard(leaderboard)
-            with col_info:
-                tips = self.game_model.get_vocational_tips()
-                self.dashboard_view.render_vocational_banner(tips)
-
-                st.markdown(
-                    """
-                    <div style="margin-top: 15px; padding: 12px; background: rgba(13, 20, 43, 0.6); border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.15);">
-                        <h4 style="color: #00f0ff; margin-top: 0; font-size: 13px;">🌐 ¿Cómo se conecta con Ingeniería de Sistemas?</h4>
-                        <ul style="font-size: 11px; color: #cbd5e1; padding-left: 16px; margin-bottom: 0;">
-                            <li><strong>Redes y Enrutamiento:</strong> Algoritmos Dijkstra y enrutamiento dinámico para paquetes TCP/IP.</li>
-                            <li><strong>Ciberseguridad Ofensiva/Defensiva:</strong> Análisis de firmas, detección heurística y arquitecturas Zero Trust.</li>
-                            <li><strong>Patrones de Software:</strong> Arquitectura MVC, Template Method, Singleton y EventBus implementados en este mismo proyecto.</li>
-                        </ul>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+        with col_arcade:
+            # Renderizar Gabinete Arcade interactivo
+            self.arcade_view.render(
+                initial_high_score=high_score,
+                top_player=top_player,
+                player_name=st.session_state["player_name"],
+                difficulty_speed=active_preset["speed_mult"],
+                top_5=self.game_model.get_top_5(),
+                height=575
+            )

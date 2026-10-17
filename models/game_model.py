@@ -1,12 +1,13 @@
 """
 SYS-ENGINEER ARCADE 198X - MVC ARCHITECTURE
 MODEL: game_model.py
-Modelo de estado del juego, persistencia de récords, configuración y métricas.
+Modelo de estado del juego, persistencia híbrida (Supabase PostgreSQL + Fallback Local JSON) y métricas.
 """
 
 import os
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from models.supabase_client import get_supabase_client, is_supabase_connected
 
 HIGHSCORES_FILE = "highscores.json"
 
@@ -41,50 +42,45 @@ VOCATIONAL_TIPS: List[str] = [
 
 
 class GameModel:
-    """Modelo de datos centralizado para el estado, récords y configuración."""
+    """Modelo de datos centralizado con persistencia en Supabase y respaldo local en JSON."""
 
     def __init__(self):
         self.highscores_path = HIGHSCORES_FILE
-        self.scores_data = self._load_scores()
+        self.scores_data = self._load_scores_local()
 
-    def _load_scores(self) -> Dict[str, Any]:
+    # -------------------------------------------------------------------------
+    # Persistencia Local (Fallback)
+    # -------------------------------------------------------------------------
+    def _load_scores_local(self) -> Dict[str, Any]:
         default = {
-            "high_score": 14800,
-            "top_player": "KEVIN_M",
-            "history": [
-                {"player": "KEVIN_M", "score": 14800, "level": "Nivel 8"},
-                {"player": "ALAN_T", "score": 12200, "level": "Nivel 7"},
-                {"player": "ADA_L", "score": 10450, "level": "Nivel 5"},
-                {"player": "LINUS_T", "score": 8900, "level": "Nivel 4"},
-                {"player": "GRACE_H", "score": 7200, "level": "Nivel 3"}
-            ]
+            "high_score": 0,
+            "top_player": "DEV_SECOPS",
+            "history": []
         }
         if os.path.exists(self.highscores_path):
             try:
                 with open(self.highscores_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    if data.get("history"):
-                        default.update(data)
-                    else:
-                        default["high_score"] = data.get("high_score", default["high_score"])
-                        default["top_player"] = data.get("top_player", default["top_player"])
+                    if isinstance(data.get("history"), list):
+                        default["history"] = data["history"]
+                        default["high_score"] = data.get("high_score", 0)
+                        default["top_player"] = data.get("top_player", "DEV_SECOPS")
             except Exception:
                 pass
         return default
 
-    def save_score(self, score: int, player_name: str = "DEV_JUNIOR", level: str = "Nivel 1") -> bool:
-        """Guarda un puntaje si supera o se ubica en el récord histórico."""
+    def _save_score_local(self, score: int, player_name: str, level: str) -> bool:
+        """Guarda en JSON local de respaldo."""
         is_new_record = False
         if score > self.scores_data.get("high_score", 0):
             self.scores_data["high_score"] = score
             self.scores_data["top_player"] = player_name
             is_new_record = True
 
-        # Agregar al historial de partidas (máximo 10)
         history = self.scores_data.setdefault("history", [])
         history.append({"player": player_name, "score": score, "level": level})
         history.sort(key=lambda x: x["score"], reverse=True)
-        self.scores_data["history"] = history[:10]
+        self.scores_data["history"] = history[:15]
 
         try:
             with open(self.highscores_path, "w", encoding="utf-8") as f:
@@ -94,23 +90,128 @@ class GameModel:
 
         return is_new_record
 
+    # -------------------------------------------------------------------------
+    # Operaciones Híbridas (Supabase Cloud + Fallback Local)
+    # -------------------------------------------------------------------------
+    def save_score(self, score: int, player_name: str = "DEV_JUNIOR", level: str = "Nivel 1", difficulty: str = "normal") -> bool:
+        """
+        Registra un puntaje en la nube Supabase y en la caché local.
+        Retorna True si representa un nuevo récord global.
+        """
+        player_clean = (player_name or "OPERADOR").strip().upper()[:20]
+        is_new_record = False
+
+        # 1. Intentar registrar en Supabase
+        supabase = get_supabase_client()
+        if supabase:
+            try:
+                # Usar la función RPC 'submit_score' para inserción atómica
+                rpc_res = supabase.rpc("submit_score", {
+                    "p_player_tag": player_clean,
+                    "p_score": score,
+                    "p_level": level,
+                    "p_difficulty": difficulty
+                }).execute()
+
+                if rpc_res and rpc_res.data:
+                    data = rpc_res.data
+                    is_new_record = bool(data.get("is_new_global_record", False))
+                else:
+                    # Alternativa manual si el RPC no existiera
+                    supabase.table("players").upsert({
+                        "player_tag": player_clean,
+                        "highest_score": score,
+                        "highest_level": level
+                    }, on_conflict="player_tag").execute()
+
+                    supabase.table("scores").insert({
+                        "player_tag": player_clean,
+                        "score": score,
+                        "level": level,
+                        "difficulty": difficulty
+                    }).execute()
+            except Exception:
+                # Falla silenciosa con fallback a local
+                pass
+
+        # 2. Respaldo en JSON local siempre
+        local_record = self._save_score_local(score, player_clean, level)
+        return is_new_record or local_record
+
     def get_high_score(self) -> int:
-        self.scores_data = self._load_scores()
-        return self.scores_data.get("high_score", 14800)
+        """Obtiene el récord mundial más alto vigente."""
+        supabase = get_supabase_client()
+        if supabase:
+            try:
+                res = supabase.table("scores").select("score").order("score", desc=True).limit(1).execute()
+                if res.data and len(res.data) > 0:
+                    return int(res.data[0]["score"])
+                return 0
+            except Exception:
+                pass
+
+        self.scores_data = self._load_scores_local()
+        return self.scores_data.get("high_score", 0)
 
     def get_top_player(self) -> str:
-        self.scores_data = self._load_scores()
-        return self.scores_data.get("top_player", "KEVIN_M")
+        """Obtiene el nombre del operador que ostenta el récord actual."""
+        supabase = get_supabase_client()
+        if supabase:
+            try:
+                res = supabase.table("scores").select("player_tag").order("score", desc=True).limit(1).execute()
+                if res.data and len(res.data) > 0:
+                    return str(res.data[0]["player_tag"])
+                return "SIN RÉCORD"
+            except Exception:
+                pass
 
-    def get_leaderboard(self) -> List[Dict[str, Any]]:
-        self.scores_data = self._load_scores()
-        return self.scores_data.get("history", [])
+        self.scores_data = self._load_scores_local()
+        return self.scores_data.get("top_player", "SIN RÉCORD")
 
     def get_top_5(self) -> List[Dict[str, Any]]:
-        """Retorna exclusivamente los mejores 5 operadores (frescos de disco)."""
-        self.scores_data = self._load_scores()
+        """Retorna exclusivamente los mejores 5 operadores (para HUD y tarjetas en vivo)."""
+        supabase = get_supabase_client()
+        if supabase:
+            try:
+                res = supabase.table("scores").select("player_tag, score, level").order("score", desc=True).order("created_at", desc=False).limit(5).execute()
+                if res.data and len(res.data) > 0:
+                    return [
+                        {
+                            "player": row.get("player_tag", "ANON"),
+                            "score": int(row.get("score", 0)),
+                            "level": row.get("level", "Nivel 1")
+                        }
+                        for row in res.data
+                    ]
+            except Exception:
+                pass
+
+        self.scores_data = self._load_scores_local()
         history = self.scores_data.get("history", [])
         return history[:5]
+
+    def get_leaderboard(self) -> List[Dict[str, Any]]:
+        """Retorna el Salón de la Fama extendido (Top 20)."""
+        supabase = get_supabase_client()
+        if supabase:
+            try:
+                res = supabase.table("scores").select("player_tag, score, level, difficulty, created_at").order("score", desc=True).order("created_at", desc=False).limit(20).execute()
+                if res.data and len(res.data) > 0:
+                    return [
+                        {
+                            "player": row.get("player_tag", "ANON"),
+                            "score": int(row.get("score", 0)),
+                            "level": row.get("level", "Nivel 1"),
+                            "difficulty": row.get("difficulty", "normal"),
+                            "created_at": row.get("created_at", "")
+                        }
+                        for row in res.data
+                    ]
+            except Exception:
+                pass
+
+        self.scores_data = self._load_scores_local()
+        return self.scores_data.get("history", [])
 
     @staticmethod
     def get_difficulty_presets() -> Dict[str, Any]:
@@ -118,4 +219,13 @@ class GameModel:
 
     @staticmethod
     def get_vocational_tips() -> List[str]:
+        # Consultar tips desde Supabase si están disponibles
+        supabase = get_supabase_client()
+        if supabase:
+            try:
+                res = supabase.table("vocational_tips").select("tip_text").eq("is_active", True).execute()
+                if res.data and len(res.data) > 0:
+                    return [row["tip_text"] for row in res.data]
+            except Exception:
+                pass
         return VOCATIONAL_TIPS
