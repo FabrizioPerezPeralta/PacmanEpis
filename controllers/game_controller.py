@@ -59,26 +59,38 @@ class GameController:
             else:
                 st.info(f"✅ Puntaje de {score:,} Bytes ({level}) registrado para {player_name}.")
 
-    def render_sidebar(self):
-        """Construye los controles interactivos de la barra lateral."""
-        with st.sidebar:
+    def render_top_bar(self, presets, active_preset):
+        """Barra de comando superior horizontal que sustituye la barra lateral para maximizar el campo visual."""
+        sb_status = get_supabase_status()
+
+        c_brand, c_status, c_player, c_diff, c_coins, c_help = st.columns(
+            [2.4, 1.3, 1.4, 1.6, 1.4, 0.7], gap="small"
+        )
+
+        with c_brand:
             st.markdown(
                 """
-                <div style="text-align: center; padding: 10px 0; border-bottom: 1px solid rgba(0,240,255,0.2);">
-                    <h2 style="color: #00f0ff; margin: 0; font-size: 20px;">🕹️ CABINA DE CONTROL</h2>
-                    <span style="font-size: 11px; color: #94a3b8;">SISTEMA OPERATIVO ARCADE v2.5</span>
+                <div style="display: flex; align-items: center; gap: 8px; padding-top: 2px;">
+                    <span style="font-size: 22px; filter: drop-shadow(0 0 8px #00f0ff);">🕹️</span>
+                    <div>
+                        <div style="font-size: 14px; font-weight: 900; letter-spacing: 1.2px; background: linear-gradient(90deg, #00f0ff, #fff, #ff0077); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.2;">
+                            CYBER PACKET // 198X
+                        </div>
+                        <div style="font-size: 8px; color: #64748b; letter-spacing: 0.8px;">
+                            SUBRED TCP/IP • MISIÓN CIBERDEFENSA
+                        </div>
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
-            # Estado de Persistencia de Base de Datos
-            sb_status = get_supabase_status()
+        with c_status:
             if sb_status["connected"]:
                 st.markdown(
                     """
-                    <div style="margin-top: 8px; font-size: 10px; color: #00ff88; text-align: center; background: rgba(0, 255, 136, 0.08); border: 1px solid rgba(0, 255, 136, 0.3); border-radius: 4px; padding: 4px 6px;">
-                        ⚡ PERSISTENCIA: <strong>SUPABASE CLOUD 🟢</strong>
+                    <div style="margin-top: 4px; font-size: 9px; color: #00ff88; text-align: center; background: rgba(0, 255, 136, 0.08); border: 1px solid rgba(0, 255, 136, 0.35); border-radius: 6px; padding: 5px 6px; font-weight: bold; letter-spacing: 0.5px;">
+                        ☁️ SUPABASE CLOUD 🟢
                     </div>
                     """,
                     unsafe_allow_html=True
@@ -86,82 +98,71 @@ class GameController:
             else:
                 st.markdown(
                     """
-                    <div style="margin-top: 8px; font-size: 10px; color: #fde047; text-align: center; background: rgba(253, 224, 71, 0.08); border: 1px solid rgba(253, 224, 71, 0.3); border-radius: 4px; padding: 4px 6px;">
-                        💾 PERSISTENCIA: <strong>MODO LOCAL (JSON) 🟡</strong>
+                    <div style="margin-top: 4px; font-size: 9px; color: #fde047; text-align: center; background: rgba(253, 224, 71, 0.08); border: 1px solid rgba(253, 224, 71, 0.35); border-radius: 6px; padding: 5px 6px; font-weight: bold; letter-spacing: 0.5px;">
+                        💾 MODO LOCAL (JSON) 🟡
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
 
-            st.write("")
-            # Identificador del Operador (Puesto arriba de todo)
+        with c_player:
             player = st.text_input(
-                "👤 Tag de Operador / Usuario",
+                "Operador",
                 value=st.session_state["player_name"],
                 max_chars=12,
-                help="Tu alias de red que aparecerá en el Top 5."
+                label_visibility="collapsed",
+                placeholder="TAG OPERADOR"
             )
             if player:
                 st.session_state["player_name"] = player.strip().upper()
 
-            st.divider()
-
-            # Ranura de Monedas / Créditos
-            col_cred1, col_cred2 = st.columns([2, 1])
-            with col_cred1:
-                st.metric(label="Créditos Restantes", value=f"{st.session_state['credits']} Fichas")
-            with col_cred2:
-                st.write("")
-                if st.button("🪙 INSERT", use_container_width=True, help="Insertar moneda virtual"):
-                    self.insert_credit()
-
-            st.divider()
-
-            # Selector de Perfil de Seguridad (Dificultad)
-            presets = self.game_model.get_difficulty_presets()
+        with c_diff:
             diff_options = list(presets.keys())
             diff_names = [presets[k]["name"] for k in diff_options]
             current_index = diff_options.index(st.session_state["difficulty"])
-
             selected_name = st.selectbox(
-                "⚙️ Perfil de SecOps (Dificultad)",
+                "Dificultad",
                 options=diff_names,
                 index=current_index,
-                help="Ajusta la velocidad base y agresividad de los virus cazadores."
+                label_visibility="collapsed"
             )
-            # Actualizar estado si cambió
             for k, val in presets.items():
                 if val["name"] == selected_name:
                     self.set_difficulty(k)
-                    st.caption(f"ℹ️ {val['description']}")
                     break
 
-            st.divider()
-
-            # Formulario manual para certificar puntaje
-            with st.expander("📝 Certificar Puntaje Manual", expanded=False):
-                manual_score = st.number_input("Bytes Logrados", min_value=0, max_value=999999, step=100)
-                manual_level = st.selectbox("Nivel Superado", [f"Nivel {i}" for i in range(1, 101)], index=0)
-                if st.button("Guardar en Leaderboard", use_container_width=True):
-                    self.submit_score(manual_score, st.session_state["player_name"], manual_level)
+        with c_coins:
+            col_fichas, col_btn = st.columns([1, 1], gap="small")
+            with col_fichas:
+                st.markdown(
+                    f"""
+                    <div style="margin-top: 2px; text-align: center; background: rgba(255, 230, 0, 0.06); border: 1px solid rgba(255, 230, 0, 0.3); border-radius: 6px; padding: 3px 4px;">
+                        <div style="font-size: 7px; color: #94a3b8; text-transform: uppercase;">FICHAS</div>
+                        <div style="font-size: 13px; font-weight: 900; color: #ffe600; text-shadow: 0 0 6px rgba(255,230,0,0.5);">{st.session_state['credits']}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+            with col_btn:
+                if st.button("🪙 +1", use_container_width=True, help="Insertar moneda virtual"):
+                    self.insert_credit()
                     st.rerun()
 
-            st.divider()
-
-            # Guía Rápida de Teclas
-            st.markdown(
-                """
-                <div style="font-size: 11px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 10px;">
-                    <strong style="color: #00f0ff;">🎮 GUÍA DE CONTROLES:</strong><br>
-                    • <strong>Flechas / WASD:</strong> Mover Paquete<br>
-                    • <strong>ESPACIO / Z / K:</strong> Disparo Sniper 🎯<br>
-                    • <strong>P:</strong> Pausar / Reanudar ⏸️<br>
-                    • <strong>R:</strong> Reiniciar Nivel 🔄<br>
-                    • <strong>Táctil:</strong> Usa la cruceta D-Pad y botones inferiores.
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        with c_help:
+            with st.popover("🎮 Guía", use_container_width=True):
+                st.markdown(
+                    """
+                    <div style="font-size: 11px; color: #cbd5e1; line-height: 1.5;">
+                        <strong style="color: #00f0ff;">🎮 GUÍA DE CONTROLES:</strong><br>
+                        • <strong>Flechas / WASD:</strong> Mover Paquete<br>
+                        • <strong>ESPACIO / Z / K:</strong> Disparo Sniper 🎯<br>
+                        • <strong>P:</strong> Pausar / Reanudar ⏸️<br>
+                        • <strong>R:</strong> Reiniciar Nivel 🔄<br>
+                        • <strong>Táctil / Ratón:</strong> Cruceta D-Pad y botones virtuales.
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
     @st.fragment(run_every="2s")
     def render_live_top_5_fragment(self, active_preset_name: str):
@@ -188,32 +189,53 @@ class GameController:
             except Exception:
                 pass
 
-        # 1. Barra lateral de control
-        self.render_sidebar()
-
-        # 2. Encabezado principal limpio
-        self.dashboard_view.render_header()
-
-        # 3. Parámetros de juego
+        # 1. Parámetros de juego
         presets = self.game_model.get_difficulty_presets()
         active_preset = presets.get(st.session_state["difficulty"], presets["normal"])
         high_score = self.game_model.get_high_score()
         top_player = self.game_model.get_top_player()
 
-        # 4. Vista Unificada: Top de Usuarios a la izquierda y Gabinete Arcade a la derecha
-        col_top5, col_arcade = st.columns([1, 1.9], gap="medium")
+        # 2. Barra de comando superior (Sustituye la barra lateral)
+        self.render_top_bar(presets, active_preset)
 
-        with col_top5:
-            # Actualización reactiva cada 2 segundos sin recargar el juego
+        # 3. Vista Principal Expandida: Consola Arcade con máximo campo visual
+        col_side, col_arcade = st.columns([1, 2.5], gap="large")
+
+        with col_side:
+            # Ranking Top 5 en vivo (Auto-actualizable cada 2s)
             self.render_live_top_5_fragment(active_preset["name"])
 
+            # Pestañas de telemetría y ayuda
+            tab_threats, tab_score, tab_voc = st.tabs(["🚨 Amenazas", "📝 Certificar", "🎓 Vocación"])
+            with tab_threats:
+                st.markdown(
+                    """
+                    <div style="font-size: 10px; color: #94a3b8; line-height: 1.5; padding: 4px 0;">
+                        <strong style="color: #ff0055;">• Blinky (Ransomware):</strong> Persecución directa.<br>
+                        <strong style="color: #ff99cc;">• Pinky (Phishing):</strong> Emboscada anticipada.<br>
+                        <strong style="color: #00f0ff;">• Inky (Spyware):</strong> Pinza coordinada.<br>
+                        <strong style="color: #ff9900;">• Clyde (Trojan):</strong> Amague y engaño.<br>
+                        <strong style="color: #bf00ff;">• Sue (Polimórfico):</strong> Intercepción diagonal.
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+            with tab_score:
+                manual_score = st.number_input("Bytes Logrados", min_value=0, max_value=999999, step=100)
+                manual_level = st.selectbox("Nivel Superado", [f"Nivel {i}" for i in range(1, 101)], index=0)
+                if st.button("Guardar en Leaderboard", use_container_width=True):
+                    self.submit_score(manual_score, st.session_state["player_name"], manual_level)
+                    st.rerun()
+            with tab_voc:
+                self.dashboard_view.render_vocational_banner(self.game_model.get_vocational_tips())
+
         with col_arcade:
-            # Renderizar Gabinete Arcade interactivo
+            # Renderizar Gabinete Arcade interactivo con mayor campo visual (height=810)
             self.arcade_view.render(
                 initial_high_score=high_score,
                 top_player=top_player,
                 player_name=st.session_state["player_name"],
                 difficulty_speed=active_preset["speed_mult"],
                 top_5=self.game_model.get_top_5(),
-                height=575
+                height=685
             )

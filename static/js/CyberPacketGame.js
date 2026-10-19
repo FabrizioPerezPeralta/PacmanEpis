@@ -420,9 +420,12 @@ class CyberPacketGame extends BaseGame{
       this.addFloatingScore(this.pacman.x, this.pacman.y - 20, '🎯 SNIPER [ESPACIO / K]');
       this.playSfx('sniper_shot');
     } else if (roll < 0.95) {
-      // 3. 10%: Vórtice DDoS
+      // 3. 10%: Vórtice DDoS (Atrae virus a la boca de Pac-Man y permite comerlos)
       this.activePower = 'vortex';
       this.powerTimer = 360; // 6 seconds
+      this.ghosts.forEach(g => {
+        if (g.state !== 'eaten' && g.state !== 'home') g.state = 'frightened';
+      });
       this.addFloatingScore(this.pacman.x, this.pacman.y - 20, '🌀 ¡VÓRTICE D-DOS 7x7!');
       this.playSfx('vortex');
     } else {
@@ -565,7 +568,7 @@ class CyberPacketGame extends BaseGame{
     if (this.powerTimer > 0) {
       this.powerTimer--;
       if (this.powerTimer === 0) {
-        if (this.activePower === 'classic') {
+        if (this.activePower === 'classic' || this.activePower === 'vortex') {
           this.ghosts.forEach(g => {
             if (g.state === 'frightened') g.state = 'chase';
           });
@@ -580,16 +583,17 @@ class CyberPacketGame extends BaseGame{
       this.vortexAngle += 0.15;
       const vortexRadiusPx = 3.5 * this.tileSize; // 7x7 tile radius = 3.5 tiles distance
       for (const g of this.ghosts) {
-        if (g.state !== 'eaten') {
+        if (g.state !== 'eaten' && g.state !== 'home') {
           const dist = Math.hypot(this.pacman.x - g.x, this.pacman.y - g.y);
           if (dist <= vortexRadiusPx) {
-            // Pull ghost toward Pacman
+            // Pull ghost toward Pacman's mouth
             const angle = Math.atan2(this.pacman.y - g.y, this.pacman.x - g.x);
             g.x += Math.cos(angle) * 5;
             g.y += Math.sin(angle) * 5;
 
-            // If reached mouth, consume!
-            if (dist < 14) {
+            // Recalculate distance after pull - if reached mouth, consume!
+            const newDist = Math.hypot(this.pacman.x - g.x, this.pacman.y - g.y);
+            if (newDist < this.tileSize * 0.8) {
               g.state = 'eaten';
               this.score += 200;
               this.addFloatingScore(g.x, g.y, 'VÓRTICE! +200');
@@ -716,7 +720,7 @@ class CyberPacketGame extends BaseGame{
         if (ghost.exitDelay <= 0) {
           ghost.x = 13.5 * this.tileSize;
           ghost.y = 11.5 * this.tileSize;
-          ghost.state = 'chase';
+          ghost.state = (this.activePower === 'classic' || this.activePower === 'vortex') ? 'frightened' : 'chase';
           ghost.dirX = -1;
           ghost.dirY = 0;
         }
@@ -728,7 +732,7 @@ class CyberPacketGame extends BaseGame{
         const homeY = 11.5 * this.tileSize;
         const dist = Math.hypot(homeX - ghost.x, homeY - ghost.y);
         if (dist < 12) {
-          ghost.state = 'chase';
+          ghost.state = (this.activePower === 'classic' || this.activePower === 'vortex') ? 'frightened' : 'chase';
         }
       }
 
@@ -870,9 +874,10 @@ class CyberPacketGame extends BaseGame{
 
   checkCollisions() {
     for (const ghost of this.ghosts) {
+      if (ghost.state === 'eaten' || ghost.state === 'home') continue;
       const dist = Math.hypot(this.pacman.x - ghost.x, this.pacman.y - ghost.y);
       if (dist < this.tileSize * 0.8) {
-        if (ghost.state === 'frightened') {
+        if (ghost.state === 'frightened' || this.activePower === 'vortex') {
           ghost.state = 'eaten';
           this.score += 200;
           this.addFloatingScore(ghost.x, ghost.y, '+200');
@@ -1072,6 +1077,24 @@ class CyberPacketGame extends BaseGame{
     this.ctx.arc(0, 0, vortexRadius, 0, Math.PI * 2);
     this.ctx.stroke();
 
+    // Spiral suction arms toward Pac-Man
+    this.ctx.setLineDash([]);
+    this.ctx.strokeStyle = 'rgba(210, 80, 255, 0.35)';
+    this.ctx.lineWidth = 1.5;
+    for (let arm = 0; arm < 3; arm++) {
+      this.ctx.beginPath();
+      const baseArmAngle = (arm * Math.PI * 2) / 3;
+      for (let t = 0; t <= 1; t += 0.05) {
+        const r = vortexRadius * t;
+        const a = baseArmAngle + t * 2.5;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        if (t === 0) this.ctx.moveTo(px, py);
+        else this.ctx.lineTo(px, py);
+      }
+      this.ctx.stroke();
+    }
+
     this.ctx.restore();
   }
 
@@ -1137,7 +1160,8 @@ class CyberPacketGame extends BaseGame{
 
     const r = this.pacman.radius;
 
-    if (ghost.state === 'frightened') {
+    const isVulnerable = ghost.state === 'frightened' || (this.activePower === 'vortex' && ghost.state !== 'eaten');
+    if (isVulnerable) {
       const isFlashing = this.powerTimer < 180 && Math.floor(this.powerTimer / 15) % 2 === 0;
       this.ctx.fillStyle = isFlashing ? '#ffffff' : '#0000bb';
     } else if (ghost.state === 'eaten') {
@@ -1162,7 +1186,7 @@ class CyberPacketGame extends BaseGame{
     const eyeOffsetX = ghost.dirX * 3;
     const eyeOffsetY = ghost.dirY * 3;
 
-    if (ghost.state === 'frightened') {
+    if (isVulnerable) {
       this.ctx.fillStyle = '#ffcc00';
       this.ctx.fillRect(-4, -4, 2, 2);
       this.ctx.fillRect(2, -4, 2, 2);

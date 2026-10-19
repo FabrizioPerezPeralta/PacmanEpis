@@ -93,7 +93,7 @@ class ArcadeView:
 
     .arcade-wrapper {{
       width: 100%;
-      max-width: 470px;
+      max-width: 500px;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
@@ -719,7 +719,7 @@ class ArcadeView:
         player_name: str = "DEV_SECOPS",
         difficulty_speed: float = 1.0,
         top_5: List[Dict[str, Any]] = None,
-        height: int = 575
+        height: int = 685
     ):
         """Emite el componente Web dentro del árbol de renderizado de Streamlit."""
         html_code = self.generate_html(

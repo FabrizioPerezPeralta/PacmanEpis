@@ -16,7 +16,7 @@ st.set_page_config(
     page_title="SYS-ENGINEER ARCADE 198X // Cyber Packet",
     page_icon="🕹️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # 2. Inyección de Estilos Globales Retro-Cibernéticos para Streamlit
@@ -37,13 +37,49 @@ st.markdown(
 
         .block-container {
             padding-top: 0.3rem !important;
-            padding-bottom: 0.2rem !important;
-            max-width: 1400px;
+            padding-bottom: 0.3rem !important;
+            padding-left: 1.2rem !important;
+            padding-right: 1.2rem !important;
+            max-width: 100% !important;
         }
 
         header[data-testid="stHeader"] {
-            height: 1.5rem !important;
+            height: 1.2rem !important;
             background: transparent !important;
+        }
+
+        /* Ocultar barra lateral por completo para maximizar el campo visual */
+        [data-testid="stSidebar"],
+        [data-testid="stSidebarCollapsedControl"],
+        button[data-testid="baseButton-headerNoPadding"],
+        header[data-testid="stHeader"] button {
+            display: none !important;
+        }
+
+        /* Inputs y Selectores de la Barra Superior */
+        .stTextInput>div>div>input {
+            background: rgba(14, 20, 40, 0.85) !important;
+            border: 1px solid rgba(0, 240, 255, 0.4) !important;
+            color: #00f0ff !important;
+            font-family: 'Orbitron', sans-serif !important;
+            font-size: 11px !important;
+            border-radius: 6px !important;
+            padding: 4px 8px !important;
+            height: 34px !important;
+        }
+        .stTextInput>div>div>input:focus {
+            border-color: #ffe600 !important;
+            box-shadow: 0 0 10px rgba(255, 230, 0, 0.5) !important;
+        }
+
+        .stSelectbox>div>div {
+            background: rgba(14, 20, 40, 0.85) !important;
+            border: 1px solid rgba(0, 240, 255, 0.4) !important;
+            color: #00f0ff !important;
+            font-family: 'Orbitron', sans-serif !important;
+            font-size: 11px !important;
+            border-radius: 6px !important;
+            height: 34px !important;
         }
 
         /* Títulos y Headers */
@@ -69,23 +105,18 @@ st.markdown(
         /* Pestañas */
         button[data-baseweb="tab"] {
             font-family: 'Orbitron', sans-serif !important;
-            font-size: 12px !important;
-            letter-spacing: 1px;
+            font-size: 11px !important;
+            letter-spacing: 0.8px;
             color: #94a3b8 !important;
             border-radius: 6px 6px 0 0;
             transition: all 0.2s ease;
+            padding: 6px 12px !important;
         }
 
         button[data-baseweb="tab"][aria-selected="true"] {
             color: #00f0ff !important;
             border-bottom-color: #00f0ff !important;
             background: rgba(0, 240, 255, 0.08) !important;
-        }
-
-        /* Sidebar Styling */
-        section[data-testid="stSidebar"] {
-            background-color: #090e1f !important;
-            border-right: 1px solid rgba(0, 240, 255, 0.15) !important;
         }
 
         /* Botones primarios */
@@ -97,6 +128,7 @@ st.markdown(
             font-size: 11px !important;
             letter-spacing: 1px !important;
             border-radius: 6px !important;
+            height: 34px !important;
             transition: all 0.2s ease !important;
         }
 
